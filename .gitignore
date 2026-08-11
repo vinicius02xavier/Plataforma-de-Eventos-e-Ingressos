@@ -30,3 +30,6 @@ frontend/.env
 *.log
 .npm/
 **/.npm/
+.cache/
+.mozilla/
+**/.cache/
