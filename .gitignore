@@ -1,0 +1,30 @@
+# Node / package managers
+node_modules/
+**/node_modules/
+package-lock.json
+npm-debug.log*
+pnpm-lock.yaml
+yarn.lock
+
+# Build output
+backend/dist/
+frontend/dist/
+**/dist/
+
+# Env files
+.env
+.env.*
+\!.env.example
+
+# Prisma / SQLite
+backend/prisma/*.db
+backend/prisma/*.db-journal
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+backend/.env
+frontend/.env
+
+# OS/editor
+.DS_Store
+.vscode/
+*.log

@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  ORGANIZER
+  CUSTOMER
+  GATE
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+enum ReservationStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime      @default(now())
+  events       Event[]       @relation("OrganizerEvents")
+  reservations Reservation[]
+}
+
+model CatalogItem {
+  id          String   @id @default(cuid())
+  externalId  String
+  provider    String
+  title       String
+  description String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+
+  events Event[]
+}
+
+model Event {
+  id             String      @id @default(cuid())
+  title          String
+  description    String?
+  imageUrl       String?
+  date           DateTime
+  location       String
+  capacity       Int
+  available      Int
+  priceInCents   Int
+  status         EventStatus @default(DRAFT)
+  organizerId    String
+  catalogItemId  String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organizer   User         @relation("OrganizerEvents", fields: [organizerId], references: [id])
+  catalogItem CatalogItem? @relation(fields: [catalogItemId], references: [id])
+  reservations Reservation[]
+  tickets      Ticket[]
+
+  @@index([status, date])
+}
+
+model Reservation {
+  id            String            @id @default(cuid())
+  eventId       String
+  customerId    String
+  quantity      Int
+  totalInCents  Int
+  status        ReservationStatus @default(PENDING)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  event    Event    @relation(fields: [eventId], references: [id])
+  customer User     @relation(fields: [customerId], references: [id])
+  tickets  Ticket[]
+
+  @@index([customerId, createdAt])
+}
+
+model Ticket {
+  id             String    @id @default(cuid())
+  reservationId  String
+  eventId        String
+  tokenHash      String    @unique
+  code           String    @unique
+  usedAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+  event       Event       @relation(fields: [eventId], references: [id])
+
+  @@index([eventId])
+}
