@@ -43,6 +43,7 @@ export function EventDetails() {
         <span className="eyebrow">EVENTO</span>
         <h1>{event.title}</h1>
         <p className="lead">{event.description || "Uma experiência para você viver de perto."}</p>
+        <p><small>ID do evento: {event.id}</small></p>
 
         <div className="facts">
           <div><small>DATA</small><strong>{new Date(event.date).toLocaleString("pt-BR")}</strong></div>

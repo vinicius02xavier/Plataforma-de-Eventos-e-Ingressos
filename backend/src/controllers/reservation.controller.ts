@@ -60,7 +60,7 @@ export async function reserve(req: AuthRequest, res: Response) {
 
 export async function pay(req: AuthRequest, res: Response) {
   const payment = paymentSchema.parse(req.body);
-  const reservationId = req.params.id;
+  const reservationId = req.params.id as string;
 
   const reservation = await prisma.reservation.findFirst({
     where: { id: reservationId, customerId: req.user!.sub },
@@ -99,7 +99,17 @@ export async function pay(req: AuthRequest, res: Response) {
       data: { status: "PAID" }
     });
 
-    const tickets = [];
+    const tickets: Array<{
+      id: string;
+      reservationId: string;
+      eventId: string;
+      tokenHash: string;
+      code: string;
+      createdAt: Date;
+      updatedAt: Date | null;
+      shareToken: string;
+      shareUrl: string;
+    }> = [];
 
     for (let i = 0; i < reservation.quantity; i++) {
       const opaqueToken = crypto.randomBytes(32).toString("hex");
@@ -117,7 +127,8 @@ export async function pay(req: AuthRequest, res: Response) {
       tickets.push({
         ...ticket,
         shareToken,
-        shareUrl: `${process.env.FRONTEND_URL || "http://localhost:5173"}/ingresso/${shareToken}`
+        shareUrl: `${process.env.FRONTEND_URL || "http://localhost:5173"}/ingresso/${shareToken}`,
+        updatedAt: null
       });
     }
 
@@ -162,7 +173,8 @@ export async function myTickets(req: AuthRequest, res: Response) {
 
 export async function sharedTicket(req: AuthRequest, res: Response) {
   try {
-    const payload = verifyTicketShareToken(req.params.token);
+    const token = Array.isArray(req.params.token) ? req.params.token[0] : req.params.token;
+    const payload = verifyTicketShareToken(token);
 
     const ticket = await prisma.ticket.findUnique({
       where: { id: payload.ticketId },
@@ -189,10 +201,19 @@ export async function validateTicket(req: AuthRequest, res: Response) {
   const schema = z.object({
     token: z.string().optional(),
     code: z.string().optional(),
-    eventId: z.string()
+    ticketId: z.string().optional(),
+    eventId: z.string().optional()
   });
 
   const data = schema.parse(req.body);
+  const eventId = data.eventId?.trim();
+
+  if (!eventId) {
+    return res.json({
+      status: "INVALID",
+      message: "Informe o ID do evento para validar o ingresso."
+    });
+  }
 
   let ticketId: string | undefined;
 
@@ -205,6 +226,8 @@ export async function validateTicket(req: AuthRequest, res: Response) {
         message: "QR/token inválido ou expirado."
       });
     }
+  } else if (data.ticketId) {
+    ticketId = data.ticketId.trim();
   }
 
   const ticket = ticketId
@@ -220,7 +243,7 @@ export async function validateTicket(req: AuthRequest, res: Response) {
     });
   }
 
-  if (ticket.eventId !== data.eventId) {
+  if (ticket.eventId !== eventId) {
     return res.json({
       status: "WRONG_EVENT",
       message: "Ingresso pertence a outro evento.",

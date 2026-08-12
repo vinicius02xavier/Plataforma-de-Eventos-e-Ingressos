@@ -46,8 +46,9 @@ model CatalogItem {
   createdAt   DateTime @default(now())
 
   events Event[]
-}
 
+  @@unique([externalId, provider])
+}
 model Event {
   id             String      @id @default(cuid())
   title          String

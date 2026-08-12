@@ -11,7 +11,7 @@ const eventSchema = z.object({
   location: z.string().min(2),
   capacity: z.number().int().positive(),
   priceInCents: z.number().int().nonnegative(),
-  catalogItemId: z.string().optional(),
+  catalogExternalId: z.string().optional(),
   status: z.enum(["DRAFT", "PUBLISHED"]).default("PUBLISHED")
 });
 
@@ -24,21 +24,63 @@ export async function listEvents(_req: AuthRequest, res: Response) {
 }
 
 export async function getEvent(req: AuthRequest, res: Response) {
-  const event = await prisma.event.findUnique({ where: { id: req.params.id } });
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const event = await prisma.event.findUnique({ where: { id } });
   if (!event) return res.status(404).json({ message: "Evento não encontrado." });
   return res.json(event);
 }
 
 export async function createEvent(req: AuthRequest, res: Response) {
   const data = eventSchema.parse(req.body);
+
+  let catalogItemId: string | undefined;
+
+  if (data.catalogExternalId) {
+    const existingCatalogItem = await prisma.catalogItem.findFirst({
+      where: {
+        externalId: data.catalogExternalId,
+        provider: "TMDB"
+      }
+    });
+
+    const catalogItem = existingCatalogItem
+      ? await prisma.catalogItem.update({
+          where: { id: existingCatalogItem.id },
+          data: {
+            title: data.title,
+            description: data.description,
+            imageUrl: data.imageUrl || null
+          }
+        })
+      : await prisma.catalogItem.create({
+          data: {
+            externalId: data.catalogExternalId,
+            provider: "TMDB",
+            title: data.title,
+            description: data.description,
+            imageUrl: data.imageUrl || null
+          }
+        });
+
+    catalogItemId = catalogItem.id;
+  }
+
   const event = await prisma.event.create({
     data: {
-      ...data,
+      title: data.title,
+      description: data.description,
       imageUrl: data.imageUrl || null,
+      date: data.date,
+      location: data.location,
+      capacity: data.capacity,
+      priceInCents: data.priceInCents,
+      status: data.status,
       organizerId: req.user!.sub,
-      available: data.capacity
+      available: data.capacity,
+      catalogItemId
     }
   });
+
   return res.status(201).json(event);
 }
 

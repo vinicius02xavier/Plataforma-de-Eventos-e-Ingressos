@@ -9,36 +9,109 @@ type Validation = {
 
 export function Gate() {
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const startedRef = useRef(false);
   const [code, setCode] = useState("");
+  const [ticketId, setTicketId] = useState("");
   const [eventId, setEventId] = useState("");
   const [result, setResult] = useState<Validation | null>(null);
+  const [cameraError, setCameraError] = useState("");
+
+  async function stopScanner() {
+    const container = document.getElementById("qr-reader");
+    if (container) {
+      container.innerHTML = "";
+    }
+
+    if (!scannerRef.current) return;
+
+    try {
+      await scannerRef.current.stop();
+    } catch {
+      // Ignora stop() quando o scanner ainda não iniciou ou já foi finalizado.
+    }
+
+    try {
+      await scannerRef.current.clear();
+    } catch {
+      // Ignora clear() quando a instância não está ativa.
+    }
+
+    scannerRef.current = null;
+  }
 
   async function validate(token?: string) {
+    const trimmedEventId = eventId.trim();
+
+    if (!trimmedEventId) {
+      setResult({
+        status: "INVALID",
+        message: "Informe o ID do evento para validar o ingresso."
+      });
+      return;
+    }
+
+    const payload = {
+      token,
+      code: token ? undefined : code.trim() || undefined,
+      ticketId: token ? undefined : ticketId.trim() || undefined,
+      eventId: trimmedEventId
+    };
+
     const data = await api<Validation>("/gate/validate", {
       method: "POST",
-      body: JSON.stringify({ token, code: token ? undefined : code, eventId })
+      body: JSON.stringify(payload)
     });
     setResult(data);
   }
 
   useEffect(() => {
-    const scanner = new Html5Qrcode("qr-reader");
-    scannerRef.current = scanner;
+    let cancelled = false;
 
-    scanner.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      async decoded => {
-        await scanner.stop().catch(() => undefined);
-        await validate(decoded).catch(err => setResult({ status: "INVALID", message: err.message }));
-      },
-      () => undefined
-    ).catch(() => undefined);
+    if (startedRef.current) return;
+    startedRef.current = true;
+
+    const startScanner = async () => {
+      try {
+        const element = document.getElementById("qr-reader");
+        if (!element) return;
+
+        element.innerHTML = "";
+        await stopScanner();
+
+        const scanner = new Html5Qrcode("qr-reader");
+        scannerRef.current = scanner;
+
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          async decoded => {
+            try {
+              await stopScanner();
+              await validate(decoded);
+            } catch (err) {
+              const message = err instanceof Error ? err.message : "Falha ao validar o ingresso.";
+              setResult({ status: "INVALID", message });
+            }
+          },
+          () => undefined
+        );
+        setCameraError("");
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : "Câmera indisponível.";
+          setCameraError(`Leitura de QR indisponível: ${message}`);
+        }
+      }
+    };
+
+    void startScanner();
 
     return () => {
-      scanner.stop().catch(() => undefined);
+      cancelled = true;
+      startedRef.current = false;
+      void stopScanner();
     };
-  }, [eventId]);
+  }, []);
 
   const className = result ? `validation ${result.status.toLowerCase()}` : "validation";
 
@@ -51,12 +124,15 @@ export function Gate() {
       <div className="gate-grid">
         <div className="form-card">
           <label>ID do evento<input value={eventId} onChange={e => setEventId(e.target.value)} placeholder="Cole o ID do evento" /></label>
+
           <div id="qr-reader" className="qr-reader" />
+          {cameraError && <div className="alert">{cameraError}</div>}
 
           <div className="separator">OU</div>
 
+          <label>ID do ingresso<input value={ticketId} onChange={e => setTicketId(e.target.value)} placeholder="Cole o ID do ingresso" /></label>
           <label>Código do ingresso<input value={code} onChange={e => setCode(e.target.value)} placeholder="ED-..." /></label>
-          <button className="button full" onClick={() => validate()}>Validar código</button>
+          <button className="button full" onClick={() => validate()}>Validar ingresso</button>
         </div>
 
         <div className={className}>

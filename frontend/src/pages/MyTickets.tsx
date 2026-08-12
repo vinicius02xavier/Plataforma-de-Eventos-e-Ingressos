@@ -29,6 +29,7 @@ export function MyTickets() {
               <div>
                 <span className="eyebrow">INGRESSO {ticket.code}</span>
                 <h2>{ticket.event.title}</h2>
+                <p><small>ID do ingresso: {ticket.id}</small></p>
                 <p>{new Date(ticket.event.date).toLocaleString("pt-BR")}</p>
                 <p>{ticket.event.location}</p>
                 <span className={ticket.usedAt ? "status used" : "status"}>

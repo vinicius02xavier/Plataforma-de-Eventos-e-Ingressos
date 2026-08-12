@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { login } from "../controllers/auth.controller";
-import { movies } from "../controllers/catalog.controller";
+import { catalogStatus, movies } from "../controllers/catalog.controller";
 import { createEvent, getEvent, listEvents, myEvents } from "../controllers/event.controller";
 import { myTickets, pay, reserve, sharedTicket, validateTicket } from "../controllers/reservation.controller";
 import { requireAuth, requireRole } from "../middleware/auth";
@@ -10,6 +10,7 @@ export const router = Router();
 router.post("/auth/login", login);
 
 router.get("/catalog/movies", requireAuth, requireRole("ORGANIZER"), movies);
+router.get("/catalog/status", requireAuth, requireRole("ORGANIZER"), catalogStatus);
 
 router.get("/events", listEvents);
 router.get("/events/:id", getEvent);

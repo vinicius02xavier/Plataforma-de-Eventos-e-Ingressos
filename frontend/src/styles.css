@@ -134,7 +134,8 @@ label { display: grid; gap: 7px; font-size: 13px; font-weight: 700; }
 .subheading { margin-top: 60px; }
 
 .gate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px; }
-.qr-reader { min-height: 280px; margin: 15px 0; background: #eee9df; }
+.qr-reader { min-height: 280px; margin: 15px 0; background: #eee9df; overflow: hidden; border-radius: 6px; }
+.qr-reader video, .qr-reader canvas { width: 100% !important; max-height: 280px; object-fit: cover; display: block; }
 .separator { text-align: center; color: #888; font-size: 11px; letter-spacing: 2px; }
 .validation { min-height: 400px; padding: 50px; background: #ded8cd; display: grid; align-content: center; gap: 8px; }
 .validation strong { font: 700 40px "Space Grotesk"; }

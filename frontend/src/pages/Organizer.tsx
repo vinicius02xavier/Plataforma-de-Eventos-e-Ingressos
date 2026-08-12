@@ -2,12 +2,14 @@ import { FormEvent, useEffect, useState } from "react";
 import type { Event } from "../types";
 import { api } from "../services/api";
 
-type Movie = { externalId: string; title: string; description: string; imageUrl?: string };
+type Movie = { externalId: string; title: string; description: string; imageUrl?: string; releaseDate?: string; voteAverage?: number; };
 
 export function Organizer() {
   const [events, setEvents] = useState<Event[]>([]);
   const [movies, setMovies] = useState<Movie[]>([]);
-  const [query, setQuery] = useState("matrix");
+  const [catalogMessage, setCatalogMessage] = useState("");
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const [query, setQuery] = useState("");
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -27,10 +29,25 @@ export function Organizer() {
   useEffect(() => { loadEvents().catch(console.error); }, []);
 
   async function searchMovies() {
-    setMovies(await api<Movie[]>(`/catalog/movies?q=${encodeURIComponent(query)}`));
+    setCatalogMessage("");
+    setMovies([]);
+
+    try {
+      const result = await api<Movie[]>(`/catalog/movies?q=${encodeURIComponent(query)}`);
+      setMovies(result);
+
+      if (result.length === 0) {
+        setCatalogMessage("Nenhum filme encontrado para esta busca.");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Não foi possível buscar filmes.";
+      setCatalogMessage(message);
+    }
   }
 
   function selectMovie(movie: Movie) {
+    setSelectedMovie(movie);
+
     setForm(prev => ({
       ...prev,
       title: movie.title,
@@ -41,15 +58,23 @@ export function Organizer() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+
     try {
       await api("/organizer/events", {
         method: "POST",
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          catalogExternalId: selectedMovie?.externalId
+        })
       });
+
       setMessage("Evento criado.");
+      setSelectedMovie(null);
       await loadEvents();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Erro.");
+      setMessage(
+        err instanceof Error ? err.message : "Erro."
+      );
     }
   }
 
@@ -65,11 +90,33 @@ export function Organizer() {
             <input value={query} onChange={e => setQuery(e.target.value)} />
             <button className="ghost-button" onClick={searchMovies}>Buscar</button>
           </div>
+          {catalogMessage && <div className="alert">{catalogMessage}</div>}
+
           <div className="movie-results">
             {movies.map(movie => (
               <button key={movie.externalId} onClick={() => selectMovie(movie)}>
-                {movie.imageUrl && <img src={movie.imageUrl} alt="" />}
-                <span>{movie.title}</span>
+                {movie.imageUrl && (
+                  <img
+                    src={movie.imageUrl}
+                    alt={`Poster de ${movie.title}`}
+                  />
+                )}
+
+                <div>
+                  <strong>{movie.title}</strong>
+
+                  {movie.releaseDate && (
+                    <small>
+                      {new Date(movie.releaseDate).getFullYear()}
+                    </small>
+                  )}
+
+                  {typeof movie.voteAverage === "number" && (
+                    <small>
+                      ⭐ {movie.voteAverage.toFixed(1)}
+                    </small>
+                  )}
+                </div>
               </button>
             ))}
           </div>
@@ -77,14 +124,14 @@ export function Organizer() {
 
         <form className="form-card" onSubmit={submit}>
           <h2>Novo evento</h2>
-          <label>Título<input value={form.title} onChange={e => setForm({...form, title: e.target.value})} required /></label>
-          <label>Descrição<textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} /></label>
-          <label>Imagem<input value={form.imageUrl} onChange={e => setForm({...form, imageUrl: e.target.value})} /></label>
-          <label>Data<input type="datetime-local" value={form.date} onChange={e => setForm({...form, date: e.target.value})} required /></label>
-          <label>Local<input value={form.location} onChange={e => setForm({...form, location: e.target.value})} required /></label>
+          <label>Título<input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required /></label>
+          <label>Descrição<textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
+          <label>Imagem<input value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} /></label>
+          <label>Data<input type="datetime-local" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} required /></label>
+          <label>Local<input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} required /></label>
           <div className="two">
-            <label>Capacidade<input type="number" value={form.capacity} onChange={e => setForm({...form, capacity: Number(e.target.value)})} /></label>
-            <label>Preço (centavos)<input type="number" value={form.priceInCents} onChange={e => setForm({...form, priceInCents: Number(e.target.value)})} /></label>
+            <label>Capacidade<input type="number" value={form.capacity} onChange={e => setForm({ ...form, capacity: Number(e.target.value) })} /></label>
+            <label>Preço (centavos)<input type="number" value={form.priceInCents} onChange={e => setForm({ ...form, priceInCents: Number(e.target.value) })} /></label>
           </div>
           <button className="button full">Publicar evento</button>
           {message && <div className="alert">{message}</div>}
