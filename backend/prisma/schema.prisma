@@ -79,6 +79,7 @@ model Reservation {
   customerId    String
   quantity      Int
   totalInCents  Int
+  seatSelection String?
   status        ReservationStatus @default(PENDING)
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
@@ -96,6 +97,7 @@ model Ticket {
   eventId        String
   tokenHash      String    @unique
   code           String    @unique
+  seatNumber     String?
   usedAt         DateTime?
   createdAt      DateTime  @default(now())
 

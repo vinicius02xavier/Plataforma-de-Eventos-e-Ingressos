@@ -1,8 +1,6 @@
 declare global {
-  interface ImportMeta {
-    env: {
-      VITE_API_URL?: string;
-    };
+  interface ImportMetaEnv {
+    VITE_API_URL?: string;
   }
 }
 

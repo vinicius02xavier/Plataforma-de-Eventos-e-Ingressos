@@ -8,15 +8,22 @@ import { createTicketShareToken, makeTicketCode, sha256, verifyTicketShareToken 
 
 const reserveSchema = z.object({
   eventId: z.string(),
-  quantity: z.number().int().min(1).max(20)
+  quantity: z.number().int().min(1).max(20),
+  seatSelection: z.union([z.array(z.string()), z.string()]).optional()
 });
 
 const paymentSchema = z.object({
   approved: z.boolean()
 });
 
+function normalizeSeatSelection(seats: string[] | string | undefined): string[] {
+  const raw = Array.isArray(seats) ? seats : typeof seats === "string" ? seats.split(",") : [];
+  return [...new Set(raw.map((seat) => seat.trim()).filter(Boolean))];
+}
+
 export async function reserve(req: AuthRequest, res: Response) {
-  const { eventId, quantity } = reserveSchema.parse(req.body);
+  const { eventId, quantity, seatSelection } = reserveSchema.parse(req.body);
+  const normalizedSeats = normalizeSeatSelection(seatSelection);
 
   try {
     const reservation = await prisma.$transaction(async (tx) => {
@@ -30,6 +37,37 @@ export async function reserve(req: AuthRequest, res: Response) {
         throw new Error("INSUFFICIENT_STOCK");
       }
 
+      if (normalizedSeats.length > 0) {
+        if (normalizedSeats.length !== quantity) {
+          throw new Error("SEAT_QUANTITY_MISMATCH");
+        }
+
+        const existing = await tx.reservation.findMany({
+          where: {
+            eventId,
+            status: { in: ["PENDING", "PAID"] }
+          },
+          select: { seatSelection: true }
+        });
+
+        const occupied = new Set<string>();
+
+        for (const entry of existing) {
+          const seats = (entry.seatSelection ?? "")
+            .split(",")
+            .map((value: string) => value.trim())
+            .filter(Boolean);
+
+          for (const seat of seats) {
+            occupied.add(seat);
+          }
+        }
+        const conflict = normalizedSeats.filter((seat) => occupied.has(seat));
+        if (conflict.length > 0) {
+          throw new Error("SEAT_TAKEN");
+        }
+      }
+
       await tx.event.update({
         where: { id: eventId },
         data: { available: { decrement: quantity } }
@@ -40,7 +78,8 @@ export async function reserve(req: AuthRequest, res: Response) {
           eventId,
           customerId: req.user!.sub,
           quantity,
-          totalInCents: event.priceInCents * quantity
+          totalInCents: event.priceInCents * quantity,
+          seatSelection: normalizedSeats.length ? normalizedSeats.join(",") : null
         },
         include: { event: true }
       });
@@ -53,6 +92,12 @@ export async function reserve(req: AuthRequest, res: Response) {
     }
     if (error instanceof Error && error.message === "INSUFFICIENT_STOCK") {
       return res.status(409).json({ message: "Quantidade indisponível." });
+    }
+    if (error instanceof Error && error.message === "SEAT_TAKEN") {
+      return res.status(409).json({ message: "Um ou mais assentos já estão ocupados." });
+    }
+    if (error instanceof Error && error.message === "SEAT_QUANTITY_MISMATCH") {
+      return res.status(409).json({ message: "A quantidade deve corresponder ao número de assentos selecionados." });
     }
     throw error;
   }
@@ -138,6 +183,43 @@ export async function pay(req: AuthRequest, res: Response) {
   return res.json(result);
 }
 
+export async function cancelTicket(req: AuthRequest, res: Response) {
+  const reservationId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+  const reservation = await prisma.reservation.findFirst({
+    where: { id: reservationId, customerId: req.user!.sub },
+    include: { event: true }
+  });
+
+  if (!reservation) {
+    return res.status(404).json({ message: "Reserva não encontrada." });
+  }
+
+  if (reservation.status === "CANCELLED") {
+    return res.json({ message: "Esta reserva já foi cancelada." });
+  }
+
+  if (reservation.status === "FAILED") {
+    return res.status(409).json({ message: "Reserva já foi recusada." });
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.reservation.update({
+      where: { id: reservation.id },
+      data: { status: "CANCELLED" }
+    });
+
+    await tx.event.update({
+      where: { id: reservation.eventId },
+      data: { available: { increment: reservation.quantity } }
+    });
+
+    return { message: "Ingresso cancelado com sucesso." };
+  });
+
+  return res.json(updated);
+}
+
 export async function myTickets(req: AuthRequest, res: Response) {
   const tickets = await prisma.ticket.findMany({
     where: {
@@ -156,12 +238,18 @@ export async function myTickets(req: AuthRequest, res: Response) {
   const result = await Promise.all(
     tickets.map(async (ticket) => {
       const shareUrl = buildShareUrl(ticket.id);
+      const seatSelection = ticket.reservation.seatSelection
+        ? ticket.reservation.seatSelection.split(",").filter(Boolean)
+        : [];
+
       return {
         id: ticket.id,
+        reservationId: ticket.reservationId,
         code: ticket.code,
         usedAt: ticket.usedAt,
         event: ticket.event,
         quantity: ticket.reservation.quantity,
+        seatSelection,
         shareUrl,
         qrDataUrl: await buildQrDataUrl(ticket.id)
       };

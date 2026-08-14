@@ -17,15 +17,18 @@ export type Event = {
   capacity: number;
   available: number;
   priceInCents: number;
-  status: string;
+  occupiedSeats?: string[];
+  status: "DRAFT" | "PUBLISHED" | "CANCELLED" | string;
 };
 
 export type Ticket = {
   id: string;
+  reservationId: string;
   code: string;
   usedAt?: string | null;
   event: Event;
   quantity: number;
+  seatSelection?: string[];
   qrDataUrl?: string;
   shareUrl?: string;
 };

@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { login } from "../controllers/auth.controller";
 import { catalogStatus, movies } from "../controllers/catalog.controller";
-import { createEvent, getEvent, listEvents, myEvents } from "../controllers/event.controller";
-import { myTickets, pay, reserve, sharedTicket, validateTicket } from "../controllers/reservation.controller";
+import { cancelEvent, createEvent, getEvent, listEvents, myEvents, updateEventStatus } from "../controllers/event.controller";
+import { cancelTicket, myTickets, pay, reserve, sharedTicket, validateTicket } from "../controllers/reservation.controller";
 import { requireAuth, requireRole } from "../middleware/auth";
 
 export const router = Router();
@@ -16,9 +16,12 @@ router.get("/events", listEvents);
 router.get("/events/:id", getEvent);
 router.get("/organizer/events", requireAuth, requireRole("ORGANIZER"), myEvents);
 router.post("/organizer/events", requireAuth, requireRole("ORGANIZER"), createEvent);
+router.patch("/organizer/events/:id/status", requireAuth, requireRole("ORGANIZER"), updateEventStatus);
+router.post("/organizer/events/:id/cancel", requireAuth, requireRole("ORGANIZER"), cancelEvent);
 
 router.post("/reservations", requireAuth, requireRole("CUSTOMER"), reserve);
 router.post("/reservations/:id/pay", requireAuth, requireRole("CUSTOMER"), pay);
+router.post("/reservations/:id/cancel", requireAuth, requireRole("CUSTOMER"), cancelTicket);
 router.get("/tickets", requireAuth, requireRole("CUSTOMER"), myTickets);
 
 router.get("/shared/tickets/:token", sharedTicket);

@@ -7,6 +7,7 @@ type Reservation = {
   quantity: number;
   totalInCents: number;
   status: string;
+  seatSelection?: string[] | string | null;
   event: { title: string; date: string; location: string };
 };
 
@@ -51,12 +52,21 @@ export function Checkout() {
     );
   }
 
+  const seatDisplay = Array.isArray(reservation.seatSelection)
+    ? reservation.seatSelection
+    : typeof reservation.seatSelection === "string"
+      ? reservation.seatSelection.split(",").filter(Boolean)
+      : [];
+
   return (
     <div className="center-page">
       <div className="form-card">
         <span className="eyebrow">CHECKOUT</span>
         <h1>{reservation.event.title}</h1>
         <p>{reservation.quantity} ingresso(s)</p>
+        {seatDisplay.length > 0 && (
+          <p><small>Assentos: {seatDisplay.join(", ")}</small></p>
+        )}
         <div className="total">R$ {(reservation.totalInCents / 100).toFixed(2)}</div>
 
         <div className="payment-options">

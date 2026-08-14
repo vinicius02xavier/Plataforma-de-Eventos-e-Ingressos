@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { api } from "../services/api";
+import type { Event } from "../types";
 
 type Validation = {
   status: "VALID" | "INVALID" | "ALREADY_USED" | "WRONG_EVENT";
@@ -9,17 +10,22 @@ type Validation = {
 
 export function Gate() {
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerIdRef = useRef(`qr-reader-${Math.random().toString(36).slice(2)}`);
+  const scannerElementRef = useRef<HTMLDivElement | null>(null);
   const startedRef = useRef(false);
   const [code, setCode] = useState("");
   const [ticketId, setTicketId] = useState("");
   const [eventId, setEventId] = useState("");
   const [result, setResult] = useState<Validation | null>(null);
   const [cameraError, setCameraError] = useState("");
+  const [activeEvents, setActiveEvents] = useState<Event[]>([]);
 
   async function stopScanner() {
-    const container = document.getElementById("qr-reader");
+    const container = scannerElementRef.current ?? document.getElementById(scannerIdRef.current);
     if (container) {
-      container.innerHTML = "";
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
     }
 
     if (!scannerRef.current) return;
@@ -65,6 +71,12 @@ export function Gate() {
   }
 
   useEffect(() => {
+    api<Event[]>("/events")
+      .then(events => setActiveEvents(events.filter(event => event.status === "PUBLISHED")))
+      .catch(() => setActiveEvents([]));
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     if (startedRef.current) return;
@@ -72,13 +84,15 @@ export function Gate() {
 
     const startScanner = async () => {
       try {
-        const element = document.getElementById("qr-reader");
+        const element = scannerElementRef.current ?? document.getElementById(scannerIdRef.current);
         if (!element) return;
 
-        element.innerHTML = "";
+        while (element.firstChild) {
+          element.removeChild(element.firstChild);
+        }
         await stopScanner();
 
-        const scanner = new Html5Qrcode("qr-reader");
+        const scanner = new Html5Qrcode(scannerIdRef.current);
         scannerRef.current = scanner;
 
         await scanner.start(
@@ -125,7 +139,7 @@ export function Gate() {
         <div className="form-card">
           <label>ID do evento<input value={eventId} onChange={e => setEventId(e.target.value)} placeholder="Cole o ID do evento" /></label>
 
-          <div id="qr-reader" className="qr-reader" />
+          <div ref={scannerElementRef} id={scannerIdRef.current} className="qr-reader" />
           {cameraError && <div className="alert">{cameraError}</div>}
 
           <div className="separator">OU</div>
@@ -135,11 +149,32 @@ export function Gate() {
           <button className="button full" onClick={() => validate()}>Validar ingresso</button>
         </div>
 
-        <div className={className}>
-          {!result ? (
-            <><span>AGUARDANDO</span><strong>Pronto para validar.</strong></>
-          ) : (
-            <><span>{result.status}</span><strong>{result.message}</strong></>
+        <div>
+          <div className={className}>
+            {!result ? (
+              <><span>AGUARDANDO</span><strong>Pronto para validar.</strong></>
+            ) : (
+              <><span>{result.status}</span><strong>{result.message}</strong></>
+            )}
+          </div>
+
+          {activeEvents.length > 0 && (
+            <div className="event-id-card">
+              <h3>Eventos ativos</h3>
+              <div className="event-id-list">
+                {activeEvents.map(event => (
+                  <button
+                    key={event.id}
+                    type="button"
+                    className="event-id-chip"
+                    onClick={() => setEventId(event.id)}
+                  >
+                    <span>{event.title}</span>
+                    <small>{event.id}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>

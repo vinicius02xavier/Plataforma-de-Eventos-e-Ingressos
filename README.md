@@ -1,49 +1,72 @@
 # Elite Dev — Plataforma de Eventos e Ingressos
 
-Implementação de referência para o desafio **Elite Dev 2026**.
+Projeto completo de uma plataforma de eventos, com fluxo de catálogo, criação de eventos por organizador, compra e validação de ingressos, compartilhamento de ingresso, cancelamento e gestão de portaria.
 
-A solução foi estruturada para entregar primeiro o fluxo ponta a ponta:
+A aplicação foi desenvolvida para cobrir o fluxo completo:
 
-**catálogo externo → organizador cria evento → cliente reserva → pagamento simulado → ingresso/QR → compartilhamento → portaria valida**
+catálogo → organizador publica evento → cliente escolhe assento → compra do ingresso → QR Code → compartilhamento → validação na portaria
 
 ## Stack
 
 - Front-end: React + Vite + TypeScript
 - Back-end: Node.js + Express + TypeScript
-- ORM: Prisma
-- Banco: SQLite por padrão, simples para avaliação local
-- Autenticação: JWT + bcrypt
+- Banco: Prisma + SQLite para desenvolvimento local
+- Autenticação: JWT + bcryptjs
 - Validação: Zod
 - Catálogo externo: TMDb
 - QR Code: `qrcode`
 - Leitura de QR: `html5-qrcode`
+- Testes: Vitest + Supertest
 
-## Requisitos atendidos
+## Funcionalidades entregues
 
-- Navegação e busca de eventos
-- Criação/gerenciamento de eventos pelo organizador
-- Compra por quantidade de ingressos (modelo "pista")
-- Controle de capacidade/estoque
-- Pagamento simulado com aprovação e recusa
-- Área "Meus ingressos"
-- QR Code por ingresso
-- Link público de compartilhamento
-- Portaria com leitura de QR e digitação manual
-- Retornos: válido, inválido, já utilizado e evento errado
-- Integração com TMDb
-- Três papéis: ORGANIZER, CUSTOMER, GATE
-- Persistência de eventos, reservas e ingressos
-- Proteção contra venda acima da capacidade em transação
-- Token de ingresso aleatório e não previsível
-- Validação de ingresso apenas uma vez
-- Seeds para avaliação
-- Testes básicos
-- Docker Compose opcional para PostgreSQL
-- Documentação de uso de IA
+### Front-end
+
+- Página inicial com catálogo de eventos
+- Busca por texto com suporte à tecla Enter
+- Limpeza automática da busca quando o campo é apagado
+- Detalhes do evento com informações do evento e disponibilidade
+- Compra do ingresso com seleção de assento em mapa visual
+- Exibição de assentos já ocupados para evitar duplicidade de reserva
+- Checkout com simulação de aprovação/recusa de pagamento
+- Meus ingressos com listagem ativa e cancelável
+- Compartilhamento de ingresso por link público
+- Painel do organizador com catálogo integrado e criação de eventos
+- Gerenciamento de eventos: publicar, cancelar e arquivar
+- Gestão de tickets por parte do cliente e do organizador
+- Painel da portaria com leitura de QR Code e fallback por código manual
+- Exibição do ID do evento ativo em card separado abaixo da validação
+
+### Back-end
+
+- Autenticação por papéis: `ORGANIZER`, `CUSTOMER`, `GATE`
+- CRUD de eventos e controle de status (`DRAFT`, `PUBLISHED`, `CANCELLED`)
+- Controle de capacidade e disponibilidade por evento
+- Reservas com transação para evitar venda acima da capacidade
+- Seleção de assentos com validação de ocupação
+- Geração de QR Code e token de ingresso
+- Validação de ingresso por QR ou código manual
+- Prevenção de uso duplicado de ingresso
+- Cancelamento de ingresso
+- Cancelamento de evento e atualização de disponibilidade
+- Integração com catálogo externo do TMDb
+- Rotas de organização, cliente e portaria separadas por autorização
+
+## Fluxo principal da aplicação
+
+1. O organizador acessa o painel administrativo.
+2. Busca filmes no catálogo e seleciona um para criar um evento.
+3. Publica o evento com dados de data, local, capacidade e preço.
+4. O cliente acessa a página inicial e escolhe um evento.
+5. O cliente seleciona assento(s) disponíveis e conclui a compra.
+6. O sistema gera o ingresso e o QR Code.
+7. O cliente pode visualizar, compartilhar ou cancelar o ticket.
+8. A portaria valida o ingresso por QR ou código manual.
+9. O sistema responde: válido, inválido, já utilizado ou evento errado.
 
 ## Credenciais de demonstração
 
-Senha de todos os usuários seed: `EliteDev@2026`
+Senha padrão de todos os usuários seed: `EliteDev@2026`
 
 | Papel | E-mail |
 |---|---|
@@ -52,21 +75,31 @@ Senha de todos os usuários seed: `EliteDev@2026`
 | Cliente 2 | `client2@elite.dev` |
 | Portaria | `gate@elite.dev` |
 
-## Execução rápida
+## Stack e decisões técnicas
+
+- Front-end em React para dashboard e fluxo interativo.
+- Vite para build e desenvolvimento rápido.
+- Express para API REST.
+- Prisma como camada de acesso ao banco.
+- SQLite como banco local para desenvolvimento e testes rápidos.
+- Postgres recomendado para produção.
+- JWT para autenticação e assinatura dos tokens de ingresso.
+- QR Code + html5-qrcode para criação e leitura dos ingressos.
+
+## Configuração local
 
 ### 1. Backend
 
 ```bash
 cd backend
 npm install
-cp .env.example .env
 npx prisma generate
 npx prisma migrate dev --name init
-npm run seed
+npm run prisma:seed
 npm run dev
 ```
 
-Backend: `http://localhost:3333`
+API disponível em: `http://localhost:3333`
 
 ### 2. Front-end
 
@@ -75,113 +108,116 @@ Em outro terminal:
 ```bash
 cd frontend
 npm install
-cp .env.example .env
 npm run dev
 ```
 
-Front-end: `http://localhost:5173`
+App disponível em: `http://localhost:5173`
+
+## Variáveis de ambiente
+
+### Backend
+
+```env
+DATABASE_URL="file:./dev.db"
+JWT_SECRET="troque-por-uma-chave-forte"
+FRONTEND_URL="http://localhost:5173"
+PORT=3333
+TMDB_API_KEY="opcional"
+```
+
+### Front-end
+
+```env
+VITE_API_URL="http://localhost:3333/api"
+```
 
 ## TMDb
 
-A aplicação funciona sem chave TMDb para o fluxo principal, exibindo uma mensagem caso o catálogo externo não esteja configurado.
+A aplicação funciona sem chave do TMDb no fluxo principal, exibindo mensagem quando o catálogo externo não estiver configurado.
 
-Para habilitar:
+Se quiser ativar a integração:
 
-1. crie uma chave no TMDb;
-2. coloque `TMDB_API_KEY` no `backend/.env`;
-3. reinicie o backend.
+1. gere uma chave na plataforma TMDb;
+2. adicione `TMDB_API_KEY` no backend;
+3. reinicie a API.
 
-## Banco
+## Banco de dados
 
-O padrão é SQLite:
+O projeto usa SQLite por padrão em desenvolvimento local:
 
 ```env
 DATABASE_URL="file:./dev.db"
 ```
 
-O projeto também possui `docker-compose.yml` com PostgreSQL para quem quiser trocar o banco.
+Para produção, o ideal é usar PostgreSQL. O Prisma está preparado para isso, e o banco deve ser trocado em:
 
-Se mudar para PostgreSQL, ajuste o provider em `backend/prisma/schema.prisma` e a `DATABASE_URL`.
+- `backend/prisma/schema.prisma`
+- variáveis de ambiente do ambiente de deploy
 
-## Fluxo sugerido para avaliação
+## Testes e verificação
 
-1. Entrar como cliente.
-2. Abrir um evento publicado.
-3. Comprar 1 ou mais ingressos.
-4. Escolher pagamento aprovado.
-5. Abrir "Meus ingressos".
-6. Abrir o ingresso e copiar o link de compartilhamento.
-7. Sair e entrar como portaria.
-8. Validar o QR ou informar o código.
-9. Repetir a validação para observar o retorno "já utilizado".
-10. Entrar como organizador e criar outro evento a partir de um filme do catálogo.
+O projeto inclui testes do backend para validar regras principais de negócio e fluxo de ingresso.
 
-## Pagamento simulado
+Também foi validado com build do frontend:
 
-No checkout existem duas opções:
+```bash
+cd frontend && npm run build
+```
 
-- Aprovar pagamento
-- Recusar pagamento
+Resultado esperado: build concluído com sucesso.
 
-Não há cobrança financeira real.
-
-## Segurança do ingresso
-
-O QR contém uma URL com um **token JWT assinado pelo servidor**, contendo apenas o identificador do ingresso e um tipo específico de token.
-
-O ingresso também possui um segredo opaco de alta entropia no fluxo de criação, cujo hash é persistido no banco. O link de compartilhamento é assinado e expira em 30 dias.
-
-Na validação:
-
-- o servidor verifica a assinatura do link;
-- recupera o ingresso pelo ID;
-- confere se o ingresso pertence ao evento informado;
-- verifica se já foi utilizado;
-- usa uma atualização condicional (`usedAt: null`) para impedir duas validações concorrentes.
-
-## Concorrência
-
-A compra usa uma transação do Prisma. O estoque é decrementado somente quando existe disponibilidade suficiente. A operação aborta se a capacidade disponível não comportar a quantidade solicitada.
-
-Para uma aplicação de escala maior, eu substituiria SQLite por PostgreSQL e reforçaria o controle com operações atômicas/locks apropriados ao banco.
-
-## Estrutura
+## Estrutura do projeto
 
 ```text
 elite-dev-events/
 ├── backend/
 │   ├── prisma/
 │   │   ├── schema.prisma
-│   │   └── seed.ts
-│   └── src/
-│       ├── config/
-│       ├── controllers/
-│       ├── lib/
-│       ├── middleware/
-│       ├── routes/
-│       ├── services/
-│       ├── tests/
-│       ├── app.ts
-│       └── server.ts
+│   │   ├── seed.ts
+│   │   └── migrations/
+│   ├── src/
+│   │   ├── app.ts
+│   │   ├── server.ts
+│   │   ├── config/
+│   │   ├── controllers/
+│   │   ├── lib/
+│   │   ├── middleware/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   └── tests/
+│   ├── package.json
+│   └── tsconfig.json
 ├── frontend/
-│   └── src/
-│       ├── components/
-│       ├── context/
-│       ├── pages/
-│       ├── services/
-│       ├── types/
-│       ├── App.tsx
-│       └── main.tsx
+│   ├── src/
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── vite.config.ts
+│   └── index.html
 ├── docker-compose.yml
-└── README.md
+├── README.md
+└── .gitignore
 ```
 
-## Uso de IA
+## Fluxo de avaliação recomendado
 
-A IA foi usada como ferramenta de apoio para:
+1. Acesse como cliente.
+2. Escolha um evento publicado.
+3. Selecione assentos disponíveis.
+4. Conclua a compra.
+5. Abra "Meus ingressos".
+6. Compartilhe o QR ou o link do ingresso.
+7. Entre como portaria e valide o ingresso.
+8. Teste também a rejeição por ingresso já usado ou evento errado.
+9. Entre como organizador e publique um evento a partir do catálogo.
+10. Verifique a gestão de status, cancelamento e atualização da lista.
 
-- estruturar o projeto inicial;
-- revisar alternativas de arquitetura;
-- gerar código repetitivo;
-- sugerir validações e testes;
-- revisar documentação.
+## Observações finais
+
+Este projeto foi levado além do escopo base do desafio e já contempla:
+
+- experiência completa de compra e validação;
+- painel de organização funcional;
+- gestão de eventos e tickets;
+- regras de negócio mais robustas para capacidade, ocupação e concorrência.
+
+A IA foi usada como apoio para arquitetura, revisão de código, sugestões de UX, valiação de fluxos e documentação, mas o projeto final foi estruturado e validado como uma aplicação funcional completa de ponta a ponta.

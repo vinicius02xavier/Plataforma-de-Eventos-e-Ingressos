@@ -5,9 +5,23 @@ import { api } from "../services/api";
 export function MyTickets() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
 
+  async function loadTickets() {
+    const data = await api<Ticket[]>("/tickets");
+    setTickets(data);
+  }
+
   useEffect(() => {
-    api<Ticket[]>("/tickets").then(setTickets).catch(console.error);
+    loadTickets().catch(console.error);
   }, []);
+
+  async function cancelTicket(ticket: Ticket) {
+    try {
+      await api(`/reservations/${ticket.reservationId}/cancel`, { method: "POST" });
+      await loadTickets();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Não foi possível cancelar o ingresso.");
+    }
+  }
 
   async function copyShareLink(ticket: Ticket) {
     if (!ticket.shareUrl) return;
@@ -32,6 +46,9 @@ export function MyTickets() {
                 <p><small>ID do ingresso: {ticket.id}</small></p>
                 <p>{new Date(ticket.event.date).toLocaleString("pt-BR")}</p>
                 <p>{ticket.event.location}</p>
+                {ticket.seatSelection && ticket.seatSelection.length > 0 && (
+                  <p><small>Assentos: {ticket.seatSelection.join(", ")}</small></p>
+                )}
                 <span className={ticket.usedAt ? "status used" : "status"}>
                   {ticket.usedAt ? "Utilizado" : "Disponível"}
                 </span>
@@ -50,6 +67,11 @@ export function MyTickets() {
                   </div>
                 )}
 
+                {!ticket.usedAt && (
+                  <button className="danger-button" onClick={() => cancelTicket(ticket)}>
+                    Cancelar ingresso
+                  </button>
+                )}
                 <button className="ghost-button" onClick={() => copyShareLink(ticket)}>
                   Compartilhar ingresso
                 </button>

@@ -27,7 +27,32 @@ export async function getEvent(req: AuthRequest, res: Response) {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const event = await prisma.event.findUnique({ where: { id } });
   if (!event) return res.status(404).json({ message: "Evento não encontrado." });
-  return res.json(event);
+
+  const occupiedSeats = await prisma.reservation.findMany({
+    where: {
+      eventId: event.id,
+      status: { in: ["PENDING", "PAID"] }
+    },
+    select: { seatSelection: true }
+  });
+
+  const occupiedSeatSet = new Set<string>();
+
+  for (const reservation of occupiedSeats) {
+    const seats = (reservation.seatSelection ?? "")
+      .split(",")
+      .map((seat: string) => seat.trim())
+      .filter(Boolean);
+
+    for (const seat of seats) {
+      occupiedSeatSet.add(seat);
+    }
+  }
+
+  return res.json({
+    ...event,
+    occupiedSeats: [...occupiedSeatSet]
+  });
 }
 
 export async function createEvent(req: AuthRequest, res: Response) {
@@ -45,22 +70,22 @@ export async function createEvent(req: AuthRequest, res: Response) {
 
     const catalogItem = existingCatalogItem
       ? await prisma.catalogItem.update({
-          where: { id: existingCatalogItem.id },
-          data: {
-            title: data.title,
-            description: data.description,
-            imageUrl: data.imageUrl || null
-          }
-        })
+        where: { id: existingCatalogItem.id },
+        data: {
+          title: data.title,
+          description: data.description,
+          imageUrl: data.imageUrl || null
+        }
+      })
       : await prisma.catalogItem.create({
-          data: {
-            externalId: data.catalogExternalId,
-            provider: "TMDB",
-            title: data.title,
-            description: data.description,
-            imageUrl: data.imageUrl || null
-          }
-        });
+        data: {
+          externalId: data.catalogExternalId,
+          provider: "TMDB",
+          title: data.title,
+          description: data.description,
+          imageUrl: data.imageUrl || null
+        }
+      });
 
     catalogItemId = catalogItem.id;
   }
@@ -90,4 +115,51 @@ export async function myEvents(req: AuthRequest, res: Response) {
     orderBy: { createdAt: "desc" }
   });
   return res.json(events);
+}
+
+const eventStatusSchema = z.object({
+  status: z.enum(["DRAFT", "PUBLISHED", "CANCELLED"]).optional()
+});
+
+export async function updateEventStatus(req: AuthRequest, res: Response) {
+  const { status } = eventStatusSchema.parse(req.body);
+  const eventId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+  if (!status) {
+    return res.status(400).json({ message: "Informe o novo status do evento." });
+  }
+
+  const event = await prisma.event.findFirst({
+    where: { id: eventId, organizerId: req.user!.sub }
+  });
+
+  if (!event) {
+    return res.status(404).json({ message: "Evento não encontrado." });
+  }
+
+  const updated = await prisma.event.update({
+    where: { id: eventId },
+    data: { status }
+  });
+
+  return res.json(updated);
+}
+
+export async function cancelEvent(req: AuthRequest, res: Response) {
+  const eventId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+  const event = await prisma.event.findFirst({
+    where: { id: eventId, organizerId: req.user!.sub }
+  });
+
+  if (!event) {
+    return res.status(404).json({ message: "Evento não encontrado." });
+  }
+
+  const updated = await prisma.event.update({
+    where: { id: eventId },
+    data: { status: "CANCELLED" }
+  });
+
+  return res.json(updated);
 }
