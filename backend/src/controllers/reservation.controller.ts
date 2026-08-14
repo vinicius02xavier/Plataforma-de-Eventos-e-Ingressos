@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { z } from "zod";
 import crypto from "crypto";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { AuthRequest } from "../middleware/auth";
 import { buildQrDataUrl, buildShareUrl } from "../services/ticket.service";
@@ -26,7 +27,7 @@ export async function reserve(req: AuthRequest, res: Response) {
   const normalizedSeats = normalizeSeatSelection(seatSelection);
 
   try {
-    const reservation = await prisma.$transaction(async (tx) => {
+    const reservation = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const event = await tx.event.findUnique({ where: { id: eventId } });
 
       if (!event || event.status !== "PUBLISHED") {
@@ -121,7 +122,7 @@ export async function pay(req: AuthRequest, res: Response) {
   }
 
   if (!payment.approved) {
-    const failed = await prisma.$transaction(async (tx) => {
+    const failed = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const updated = await tx.reservation.update({
         where: { id: reservation.id },
         data: { status: "FAILED" }
@@ -138,7 +139,7 @@ export async function pay(req: AuthRequest, res: Response) {
     return res.json(failed);
   }
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const paid = await tx.reservation.update({
       where: { id: reservation.id },
       data: { status: "PAID" }
@@ -236,7 +237,7 @@ export async function myTickets(req: AuthRequest, res: Response) {
   });
 
   const result = await Promise.all(
-    tickets.map(async (ticket) => {
+    tickets.map(async (ticket: any) => {
       const shareUrl = buildShareUrl(ticket.id);
       const seatSelection = ticket.reservation.seatSelection
         ? ticket.reservation.seatSelection.split(",").filter(Boolean)

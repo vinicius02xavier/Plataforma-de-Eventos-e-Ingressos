@@ -28,7 +28,7 @@ describe("cancelTicket", () => {
       event: { id: "event_1" }
     } as any);
 
-    vi.mocked(prisma.$transaction).mockImplementation(async (fn) => fn({
+    vi.mocked(prisma.$transaction).mockImplementation(async (fn: any) => fn({
       reservation: {
         update: vi.fn().mockResolvedValue({ id: "res_1", status: "CANCELLED" }),
       },
@@ -94,7 +94,7 @@ describe("cancelEvent", () => {
 
 describe("reserve", () => {
   it("rejects a seat already assigned to another reservation", async () => {
-    vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
+    vi.mocked(prisma.$transaction).mockImplementation(async (fn: any) => {
       const tx = {
         event: {
           findUnique: vi.fn().mockResolvedValue({
