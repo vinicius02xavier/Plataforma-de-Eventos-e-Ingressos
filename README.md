@@ -82,7 +82,6 @@ Senha padrão de todos os usuários seed: `EliteDev@2026`
 - Express para API REST.
 - Prisma como camada de acesso ao banco.
 - SQLite como banco local para desenvolvimento e testes rápidos.
-- Postgres recomendado para produção.
 - JWT para autenticação e assinatura dos tokens de ingresso.
 - QR Code + html5-qrcode para criação e leitura dos ingressos.
 
@@ -119,10 +118,10 @@ App disponível em: `http://localhost:5173`
 
 ```env
 DATABASE_URL="file:./dev.db"
-JWT_SECRET="troque-por-uma-chave-forte"
+JWT_SECRET="pHt9yV+o,8H3+O{vgm.%8hY08-1$BdpQ"
 FRONTEND_URL="http://localhost:5173"
 PORT=3333
-TMDB_API_KEY="opcional"
+TMDB_API_KEY="eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI3MmRhZWNmYTY2ZDJhYjFhMDMyNjg0NmYxYjU5ODQ1OCIsIm5iZiI6MTc4NjQ4NDk4OS4xMTIsInN1YiI6IjZhN2I5OGZkNTI2MGMzZWQ4MDQyMGVkZiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.C3PI3-kFga1MUicGXVv29bu3z51nYzLZznMk7HoCAuU"
 ```
 
 ### Front-end
@@ -135,11 +134,7 @@ VITE_API_URL="http://localhost:3333/api"
 
 A aplicação funciona sem chave do TMDb no fluxo principal, exibindo mensagem quando o catálogo externo não estiver configurado.
 
-Se quiser ativar a integração:
-
-1. gere uma chave na plataforma TMDb;
-2. adicione `TMDB_API_KEY` no backend;
-3. reinicie a API.
+Chave genérica utilizada para integração e testes.
 
 ## Banco de dados
 
@@ -148,11 +143,6 @@ O projeto usa SQLite por padrão em desenvolvimento local:
 ```env
 DATABASE_URL="file:./dev.db"
 ```
-
-Para produção, o ideal é usar PostgreSQL. O Prisma está preparado para isso, e o banco deve ser trocado em:
-
-- `backend/prisma/schema.prisma`
-- variáveis de ambiente do ambiente de deploy
 
 ## Testes e verificação
 
