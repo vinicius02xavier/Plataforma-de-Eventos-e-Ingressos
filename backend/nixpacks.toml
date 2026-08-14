@@ -1,0 +1,23 @@
+# Nixpacks configuration for the backend API
+#
+# By default Nixpacks only copies a minimal set of files into the final
+# image. Since our build step (`npm run build`) compiles TypeScript into
+# `dist/`, we need to explicitly tell Nixpacks to keep that directory (along
+# with the other runtime dependencies) so the compiled `dist/server.js` is
+# still present when the container starts.
+
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = ["npm run build"]
+onlyIncludeFiles = [
+  "dist",
+  "prisma",
+  "package.json",
+  "package-lock.json",
+  "node_modules"
+]
+
+[start]
+cmd = "npx prisma generate && npx prisma db push && npm start"
