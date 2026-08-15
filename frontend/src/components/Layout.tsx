@@ -18,7 +18,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {user ? (
-          <button className="ghost-button" onClick={() => { logout(); navigate("/login"); }}>
+          <button className="exit-ghost-button" onClick={() => { logout(); navigate("/login"); }}>
             Sair
           </button>
         ) : (
